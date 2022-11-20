@@ -1,9 +1,18 @@
 const readline = require('readline');
 
 /* Library */
-const { activeSessions } = require('./session');
+const { activeSessions, listActiveUsers } = require('./session');
 const { readAsNumber } = require('../utils/bufferUtils');
 const { commonMessages, specialKeys } = require('../utils/messageUtils');
+
+const commands = {
+  '/commands': {
+    helper: 'Display a list of available commands',
+  },
+  '/users': {
+    helper: 'Display a list of all connected users',
+  },
+};
 
 /**
  * Clear the current prompt for a given user stream.
@@ -41,8 +50,55 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
  * Send a message to all clients from the server.
  * @param {string} message Message to send.
  */
- const sendServerMessageToAllSessions = (message) => {
+const sendServerMessageToAllSessions = (message) => {
   activeSessions.forEach(s => clearSendRestore(s, message));
+};
+
+/**
+ * Send a special server message to a single user session.
+ * @param {object} session Client session.
+ * @param {string} message Message to send.
+ */
+const sendServerMessageToSession = (session, message) => {
+  session.channel.write(specialKeys.newline);
+  session.channel.write(specialKeys.newline);
+  session.channel.write(message);
+  session.channel.write(specialKeys.newline);
+}
+
+/**
+ * Display a list of all available server commands to the current user session.
+ * @param {object} session Client session.
+ */
+const listCommands = (session) => {
+  const commandNames = Object.keys(commands);
+  const message = commandNames.map(c => `    ${c}: ${commands[c]?.helper}`).join(specialKeys.newline);
+  sendServerMessageToSession(session, message);
+};
+
+/**
+ * Display a list of all other active users to the current user session.
+ * @param {object} session Client session.
+ */
+const listUsers = (session) => {
+  const message = listActiveUsers(session.identifier);
+  sendServerMessageToSession(session, message);
+}
+
+const handleSlashCommand = (session) => {
+  const { buffer } = session;
+  const string = buffer.join('');
+
+  if (!string.startsWith('/')) return false;
+
+  const command = commands[string];
+  
+  if (!command || !command.func)
+    sendServerMessageToSession(session, `  '${string}' is not known or currently implemented`);
+  else
+    command.func(session);
+
+  return true;
 };
 
 /**
@@ -65,8 +121,9 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
 
   switch (keycode) {
     case specialKeys.return:
+      if (!handleSlashCommand(session))
+        sendClientMessageToAllSessions(identifier, buffer.join(''));
       channel.write(commonMessages.newlinePrompt)
-      sendClientMessageToAllSessions(identifier, buffer.join(''));
       buffer.splice(0, buffer.length);
       break;
     case specialKeys.backspace:
@@ -86,7 +143,16 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
   }
 };
 
+/**
+ * Initialise command mapping functions at runtime.
+ */
+const initCommands = () => {
+  commands['/commands'].func = listCommands;
+  commands['/users'].func = listUsers;
+};
+
 module.exports = {
+  initCommands,
   handleUserInput,
   sendServerMessageToAllSessions,
 };

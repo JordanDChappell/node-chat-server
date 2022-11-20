@@ -24,22 +24,21 @@ const onClientAuth = (context) => {
 };
 
 const onClientReady = (client, identifier, username) => {
-  client.on('session', (accept, reject) => {
+  client.on('session', (accept) => {
     const session = accept();
 
-    session.on('exec', (accept, reject, info) => {
-      console.log(`Client wants to execute: ${inspect(info.command)}`);
+    session.on('exec', (accept) => {
       const stream = accept();
       stream.stderr.write('Sorry, no commands are currently implemented in the chat server');
       stream.exit(0);
       stream.end();
     });
 
-    session.on('pty', (accept, reject, info) => {
+    session.on('pty', (accept) => {
       accept();
     });
 
-    session.on('shell', (accept, reject) => {
+    session.on('shell', (accept) => {
       const channel = accept();
       addNewActiveSession(identifier, username, session, channel);
       channel.write(displayWelcomeBanner(identifier));

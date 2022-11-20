@@ -3,6 +3,9 @@ const { Server } = require('ssh2');
 
 /* Library */
 const { onClientConnected } = require('./chat/client');
+const { initCommands } = require('./chat/commands');
+
+initCommands();
 
 const config = {
   hostKeys: [process.env.PRIVATE_KEY],

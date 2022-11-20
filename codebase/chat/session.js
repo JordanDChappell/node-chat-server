@@ -26,8 +26,8 @@ const generateSessionId = () => crypto.randomUUID();
  */
 const listActiveUsers = (currentIdentifier) => {
   const userSessions = activeSessionsOtherThanCurrent(currentIdentifier);
-  return userSessions.length ? userSessions?.map(s => `  ${s.username}`).join(`${specialKeys.newline}  `) : 'No one else is here 😢';
-}
+  return userSessions.length ? userSessions?.map(s => `  - ${s.username}`).join(specialKeys.newline) : '  No one else is here 😢';
+};
 
 /**
  * Add a new user to the list of active chat sessions.
@@ -87,6 +87,7 @@ const getCurrentServerTimeString = () => {
  */
 const displayWelcomeBanner = (currentIdentifier) => `=============================================${specialKeys.newline}  Welcome to SSH Chat!${specialKeys.newline}
   Current server time: ${getCurrentServerTimeString()}${specialKeys.newline}  Current active users:${specialKeys.newline}  ${listActiveUsers(currentIdentifier)}${specialKeys.newline}
+  Type '/commands' to view all available chat server commands${specialKeys.newline}
   Please be civil and have a nice time 🥳${specialKeys.newline}=============================================${specialKeys.newline}`;
 
 module.exports = { 
@@ -95,4 +96,5 @@ module.exports = {
   addNewActiveSession,
   removeActiveSession,
   displayWelcomeBanner,
+  listActiveUsers,
 };
