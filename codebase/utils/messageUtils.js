@@ -1,7 +1,8 @@
 const specialKeys = {
-  return: '\r',
+  exit: 3,
+  return: 13,
+  backspace: 127,
   newline: '\r\n',
-  backspace: '\b',
 };
 const commonMessages = {
   prompt: `Message: `,

@@ -3,6 +3,7 @@ const readline = require('readline');
 
 /* Library */
 const { specialKeys, commonMessages } = require('./utils/messageUtils');
+const { readAsNumber } = require('./utils/bufferUtils');
 
 const activeSessions = [];
 
@@ -36,13 +37,17 @@ const removeActiveSession = (identifier) => {
   activeSessions.splice(index, 1);
 };
 
+const clear = (stream) => {
+  readline.clearLine(stream);
+  readline.cursorTo(stream, 0);
+}
+
 const sendMessageToAllSessions = (fromIdentifier, message) => {
   const sendingSession = activeSessions.find(s => s.identifier === fromIdentifier);
   const sessionsToRecieve = activeSessions.filter(s => s.identifier !== fromIdentifier);
 
   sessionsToRecieve.forEach(s => {
-    readline.clearLine(s.channel.stdout);
-    readline.cursorTo(s.channel.stdout, 0);
+    clear(s.channel);
     s.channel.write(`${sendingSession.username}: ${message}${specialKeys.newline}`);
     s.channel.write(commonMessages.prompt);
     s.channel.write(s.buffer.join(''));
@@ -60,18 +65,24 @@ const handleUserInput = (identifier, data) => {
   const { channel, buffer } = session;
 
   const string = data.toString();
+  const keycode = readAsNumber(data);
 
-  switch (string) {
+  switch (keycode) {
     case specialKeys.return:
       channel.write(`${specialKeys.newline}${commonMessages.prompt}`);
       sendMessageToAllSessions(identifier, buffer.join(''));
       buffer.splice(0, buffer.length);
       break;
     case specialKeys.backspace:
-      console.log('backspace');
+      clear(channel);
       buffer.splice(buffer.length - 1, 1);
       channel.write(commonMessages.prompt);
       channel.write(buffer.join(''));
+      break;
+    case specialKeys.exit:
+      channel.end();
+      channel.exit(0);
+      break;
     default:
       channel.write(data);
       buffer.push(string);
