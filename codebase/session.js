@@ -25,21 +25,34 @@ const clearCurrentLine = (channel) => {
 };
 
 /**
- * Send a message from a given client to all active users.
- * @param {string} fromIdentifier 
- * @param {string} message 
+ * Handle current user input while sending a message, clear their line, send message, restore their previous input.
+ * @param {object} session Client session.
+ * @param {string} message Message to send.
  */
-const sendClientMessageToAllSessions = (fromIdentifier, message) => {
-  const sendingSession = activeSessions.find(s => s.identifier === fromIdentifier);
-  const sessionsToRecieve = activeSessions.filter(s => s.identifier !== fromIdentifier);
+const clearSendRestore = (session, message) => {
+  clearCurrentLine(session.channel);
+  session.channel.write(message);
+  session.channel.write(commonMessages.newlinePrompt);
+  session.channel.write(session.buffer.join(''));
+};
 
-  sessionsToRecieve.forEach(s => {
-    // Need to handle current user input when sending a message, the current line is cleared and then restored
-    clearCurrentLine(s.channel);
-    s.channel.write(`${sendingSession.username}: ${message}`);
-    s.channel.write(commonMessages.newlinePrompt);
-    s.channel.write(s.buffer.join(''));
-  });
+/**
+ * Send a message from a given client to all active users.
+ * @param {string} senderIdentifier Unique identifier of sender.
+ * @param {string} message Message to send.
+ */
+const sendClientMessageToAllSessions = (senderIdentifier, message) => {
+  const sendingSession = activeSessions.find(s => s.identifier === senderIdentifier);
+  const sessionsToRecieve = activeSessions.filter(s => s.identifier !== senderIdentifier);
+  sessionsToRecieve.forEach(s => clearSendRestore(s, `${sendingSession.username}: ${message}`));
+};
+
+/**
+ * Send a message to all clients from the server.
+ * @param {string} message Message to send.
+ */
+const sendServerMessageToAllSessions = (message) => {
+  activeSessions.forEach(s => clearSendRestore(s, message));
 };
 
 /**
@@ -47,6 +60,16 @@ const sendClientMessageToAllSessions = (fromIdentifier, message) => {
  * @returns {string} Session identifier.
  */
 const generateSessionId = () => crypto.randomUUID();
+
+/**
+ * Display a list of all active user connections to the server (other than the current user).
+ * @param {string} currentIdentifier Current client identifier.
+ * @returns {string} List of all users, else a lonely message.
+ */
+const listActiveUsers = (currentIdentifier) => {
+  const userSessions = activeSessionsOtherThanCurrent(currentIdentifier);
+  return userSessions.length ? userSessions?.map(s => `  ${s.username}`).join(`${specialKeys.newline}  `) : 'No one else is here 😢';
+}
 
 /**
  * Add a new user to the list of active chat sessions.
@@ -146,7 +169,7 @@ const getCurrentServerTimeString = () => {
  * @returns {string} Welcome banner.
  */
 const displayWelcomeBanner = (currentIdentifier) => `=============================================${specialKeys.newline}  Welcome to SSH Chat!${specialKeys.newline}
-  Current server time: ${getCurrentServerTimeString()}${specialKeys.newline}  Current active users:${specialKeys.newline}  ${activeSessionsOtherThanCurrent(currentIdentifier).length ? activeSessionsOtherThanCurrent(currentIdentifier).map(s => `  ${s.username}`).join(`${specialKeys.newline}  `) : 'No one else is here 😢'}${specialKeys.newline}
+  Current server time: ${getCurrentServerTimeString()}${specialKeys.newline}  Current active users:${specialKeys.newline}  ${listActiveUsers(currentIdentifier)}${specialKeys.newline}
   Please be civil and have a nice time 🥳${specialKeys.newline}=============================================${specialKeys.newline}`;
 
 module.exports = { 
@@ -155,4 +178,5 @@ module.exports = {
   removeActiveSession,
   handleUserInput,
   displayWelcomeBanner,
+  sendServerMessageToAllSessions,
 };

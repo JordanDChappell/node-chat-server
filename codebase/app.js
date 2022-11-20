@@ -9,7 +9,8 @@ const {
   addNewActiveSession,
   removeActiveSession,
   handleUserInput,
-  displayWelcomeBanner
+  displayWelcomeBanner,
+  sendServerMessageToAllSessions
 } = require('./session');
 
 const onClientAuth = (context) => {
@@ -51,6 +52,7 @@ const onClientReady = (client, identifier, username) => {
 const onClientClose = (identifier, username) => {
   removeActiveSession(identifier);
   console.log(`${identifier} - ${username} closed their connection`);
+  sendServerMessageToAllSessions(`User '${username}' has disconnected`);
 };
 
 const onClientError = (client, identifier, username, error) => {
