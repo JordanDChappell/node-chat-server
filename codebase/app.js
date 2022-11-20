@@ -3,22 +3,22 @@ const { inspect } = require('util');
 const { Server } = require('ssh2');
 
 /* Library */
-const { specialKeys, commonMessages } = require('./utils/messageUtils');
+const { commonMessages } = require('./utils/messageUtils');
 const {
   generateSessionId,
   addNewActiveSession,
   removeActiveSession,
   handleUserInput,
+  displayWelcomeBanner
 } = require('./session');
 
 const onClientAuth = (context) => {
   switch (context.method) {
+    case 'keyboard-interactive':
     case 'password':
       return context.accept();
-    case 'publickey':
-      return context.accept();
     default:
-      return context.reject(['keyboard-interactive', 'password', 'publickey']);
+      return context.reject(['keyboard-interactive', 'password']);
   }
 };
 
@@ -40,12 +40,9 @@ const onClientReady = (client, identifier, username) => {
 
     session.on('shell', (accept, reject) => {
       const channel = accept();
-
       addNewActiveSession(identifier, username, session, channel);
-
-      channel.write(`Hello ${username}!`);
-      channel.write(`${specialKeys.newline}${commonMessages.prompt}`);
-
+      channel.write(displayWelcomeBanner(identifier));
+      channel.write(commonMessages.prompt);
       channel.on('data', (data) => handleUserInput(identifier, data));
     });
   });
@@ -77,7 +74,11 @@ const onClientConnected = (client) => {
   client.on('error', (error) => onClientError(client, identifier, username, error));
 }
 
-const server = new Server({ hostKeys: [process.env.PRIVATE_KEY] }, onClientConnected);
+const config = {
+  hostKeys: [process.env.PRIVATE_KEY],
+};
+
+const server = new Server(config, onClientConnected);
 
 server.listen(60606, '127.0.0.1', () => {
   console.log(`Server listening on port ${server.address().port}`);
