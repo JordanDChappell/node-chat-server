@@ -1,7 +1,11 @@
 const readline = require('readline');
 
 /* Library */
-const { activeSessions, listActiveUsers } = require('./session');
+const { 
+  activeSessions,
+  activeSessionsOtherThanCurrent,
+  listActiveUsers,
+} = require('./session');
 const { readAsNumber } = require('../utils/bufferUtils');
 const { commonMessages, specialKeys } = require('../utils/messageUtils');
 
@@ -144,6 +148,16 @@ const handleSlashCommand = (session) => {
 };
 
 /**
+ * Send a message to other clients when a new user connects.
+ * @param {string} identifier Unique client identifier.
+ * @param {string} username 
+ */
+const sendUserConnectedMessage = (identifier, username) => {
+  const userSessions = activeSessionsOtherThanCurrent(identifier);
+  userSessions.forEach(s => clearSendRestore(s, `User '${username}' has connected`));
+};
+
+/**
  * Initialise command mapping functions at runtime.
  */
 const initCommands = () => {
@@ -155,4 +169,5 @@ module.exports = {
   initCommands,
   handleUserInput,
   sendServerMessageToAllSessions,
+  sendUserConnectedMessage,
 };

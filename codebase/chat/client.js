@@ -10,6 +10,7 @@ const {
 const {
   sendServerMessageToAllSessions,
   handleUserInput,
+  sendUserConnectedMessage
 } = require('./commands');
 const { commonMessages } = require('../utils/messageUtils');
 
@@ -41,6 +42,7 @@ const onClientReady = (client, identifier, username) => {
     session.on('shell', (accept) => {
       const channel = accept();
       addNewActiveSession(identifier, username, session, channel);
+      sendUserConnectedMessage(identifier, username);
       channel.write(displayWelcomeBanner(identifier));
       channel.write(commonMessages.prompt);
       channel.on('data', (data) => handleUserInput(identifier, data));

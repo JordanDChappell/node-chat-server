@@ -92,6 +92,7 @@ const displayWelcomeBanner = (currentIdentifier) => `===========================
 
 module.exports = { 
   activeSessions,
+  activeSessionsOtherThanCurrent,
   generateSessionId,
   addNewActiveSession,
   removeActiveSession,
