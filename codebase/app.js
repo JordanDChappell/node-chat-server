@@ -13,6 +13,6 @@ const config = {
 
 const server = new Server(config, onClientConnected);
 
-server.listen(process.env.PORT, '127.0.0.1', () => {
+server.listen(process.env.PORT, '0.0.0.0', () => {
   console.log(`Server listening on port ${server.address().port}`);
 });

@@ -7,5 +7,8 @@
   "dependencies": {
     "dotenv": "^16.0.3",
     "ssh2": "^1.11.0"
+  },
+  "scripts": {
+    "start": "node ./app.js"
   }
 }
