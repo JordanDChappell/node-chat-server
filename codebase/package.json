@@ -8,7 +8,14 @@
     "dotenv": "^16.0.3",
     "ssh2": "^1.11.0"
   },
+  "devDependencies": {
+    "eslint": "^8.28.0",
+    "eslint-config-prettier": "^8.5.0",
+    "prettier": "^2.7.1"
+  },
   "scripts": {
-    "start": "node ./app.js"
+    "start": "node ./app.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   }
 }

@@ -4,6 +4,7 @@ const { Server } = require('ssh2');
 /* Library */
 const { onClientConnected } = require('./chat/client');
 const { initCommands } = require('./chat/commands');
+const { logInfo } = require('./utils/logger');
 
 initCommands();
 
@@ -14,5 +15,5 @@ const config = {
 const server = new Server(config, onClientConnected);
 
 server.listen(process.env.PORT, '0.0.0.0', () => {
-  console.log(`Server listening on port ${server.address().port}`);
+  logInfo(`Server listening on port ${server.address().port}`);
 });

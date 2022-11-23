@@ -1,13 +1,14 @@
 const readline = require('readline');
 
 /* Library */
-const { 
+const {
   activeSessions,
   activeSessionsOtherThanCurrent,
   listActiveUsers,
 } = require('./session');
 const { readAsNumber } = require('../utils/bufferUtils');
 const { commonMessages, specialKeys } = require('../utils/messageUtils');
+const { logError } = require('../utils/logger');
 
 const commands = {
   '/commands': {
@@ -20,9 +21,9 @@ const commands = {
 
 /**
  * Clear the current prompt for a given user stream.
- * @param {Stream} channel Client stream. 
+ * @param {Stream} channel Client stream.
  */
- const clearCurrentLine = (channel) => {
+const clearCurrentLine = (channel) => {
   readline.clearLine(channel);
   readline.cursorTo(channel, 0);
 };
@@ -45,9 +46,15 @@ const clearSendRestore = (session, message) => {
  * @param {string} message Message to send.
  */
 const sendClientMessageToAllSessions = (senderIdentifier, message) => {
-  const sendingSession = activeSessions.find(s => s.identifier === senderIdentifier);
-  const sessionsToRecieve = activeSessions.filter(s => s.identifier !== senderIdentifier);
-  sessionsToRecieve.forEach(s => clearSendRestore(s, `${sendingSession.username}: ${message}`));
+  const sendingSession = activeSessions.find(
+    (s) => s.identifier === senderIdentifier
+  );
+  const sessionsToRecieve = activeSessions.filter(
+    (s) => s.identifier !== senderIdentifier
+  );
+  sessionsToRecieve.forEach((s) =>
+    clearSendRestore(s, `${sendingSession.username}: ${message}`)
+  );
 };
 
 /**
@@ -55,7 +62,7 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
  * @param {string} message Message to send.
  */
 const sendServerMessageToAllSessions = (message) => {
-  activeSessions.forEach(s => clearSendRestore(s, message));
+  activeSessions.forEach((s) => clearSendRestore(s, message));
 };
 
 /**
@@ -68,7 +75,7 @@ const sendServerMessageToSession = (session, message) => {
   session.channel.write(specialKeys.newline);
   session.channel.write(message);
   session.channel.write(specialKeys.newline);
-}
+};
 
 /**
  * Display a list of all available server commands to the current user session.
@@ -76,7 +83,9 @@ const sendServerMessageToSession = (session, message) => {
  */
 const listCommands = (session) => {
   const commandNames = Object.keys(commands);
-  const message = commandNames.map(c => `    ${c}: ${commands[c]?.helper}`).join(specialKeys.newline);
+  const message = commandNames
+    .map((c) => `    ${c}: ${commands[c]?.helper}`)
+    .join(specialKeys.newline);
   sendServerMessageToSession(session, message);
 };
 
@@ -87,7 +96,7 @@ const listCommands = (session) => {
 const listUsers = (session) => {
   const message = listActiveUsers(session.identifier);
   sendServerMessageToSession(session, message);
-}
+};
 
 const handleSlashCommand = (session) => {
   const { buffer } = session;
@@ -96,11 +105,13 @@ const handleSlashCommand = (session) => {
   if (!string.startsWith('/')) return false;
 
   const command = commands[string];
-  
+
   if (!command || !command.func)
-    sendServerMessageToSession(session, `  '${string}' is not known or currently implemented`);
-  else
-    command.func(session);
+    sendServerMessageToSession(
+      session,
+      `  '${string}' is not known or currently implemented`
+    );
+  else command.func(session);
 
   return true;
 };
@@ -110,11 +121,11 @@ const handleSlashCommand = (session) => {
  * @param {string} identifier Client identifier.
  * @param {Buffer} data Client input buffer.
  */
- const handleUserInput = (identifier, data) => {
-  const session = activeSessions.find(s => s.identifier === identifier);
+const handleUserInput = (identifier, data) => {
+  const session = activeSessions.find((s) => s.identifier === identifier);
 
   if (!session) {
-    console.log('Tried to accept input for session that doesn\'t exist');
+    logError("Tried to accept input for session that doesn't exist");
     return;
   }
 
@@ -127,7 +138,7 @@ const handleSlashCommand = (session) => {
     case specialKeys.return:
       if (!handleSlashCommand(session))
         sendClientMessageToAllSessions(identifier, buffer.join(''));
-      channel.write(commonMessages.newlinePrompt)
+      channel.write(commonMessages.newlinePrompt);
       buffer.splice(0, buffer.length);
       break;
     case specialKeys.backspace:
@@ -150,11 +161,13 @@ const handleSlashCommand = (session) => {
 /**
  * Send a message to other clients when a new user connects.
  * @param {string} identifier Unique client identifier.
- * @param {string} username 
+ * @param {string} username
  */
 const sendUserConnectedMessage = (identifier, username) => {
   const userSessions = activeSessionsOtherThanCurrent(identifier);
-  userSessions.forEach(s => clearSendRestore(s, `User '${username}' has connected`));
+  userSessions.forEach((s) =>
+    clearSendRestore(s, `User '${username}' has connected`)
+  );
 };
 
 /**

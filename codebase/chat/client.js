@@ -1,5 +1,3 @@
-const { inspect } = require('util');
-
 /* Library */
 const {
   generateSessionId,
@@ -10,9 +8,10 @@ const {
 const {
   sendServerMessageToAllSessions,
   handleUserInput,
-  sendUserConnectedMessage
+  sendUserConnectedMessage,
 } = require('./commands');
 const { commonMessages } = require('../utils/messageUtils');
+const { logInfo, logError } = require('../utils/logger');
 
 const onClientAuth = (context) => {
   switch (context.method) {
@@ -30,7 +29,9 @@ const onClientReady = (client, identifier, username) => {
 
     session.on('exec', (accept) => {
       const stream = accept();
-      stream.stderr.write('Sorry, no commands are currently implemented in the chat server');
+      stream.stderr.write(
+        'Sorry, no commands are currently implemented in the chat server'
+      );
       stream.exit(0);
       stream.end();
     });
@@ -52,12 +53,14 @@ const onClientReady = (client, identifier, username) => {
 
 const onClientClose = (identifier, username) => {
   removeActiveSession(identifier);
-  console.log(`${identifier} - ${username} closed their connection`);
+  logInfo(`${identifier} - ${username} closed their connection`);
   sendServerMessageToAllSessions(`User '${username}' has disconnected`);
 };
 
 const onClientError = (client, identifier, username, error) => {
-  console.log(`User ${identifier} - ${username} encountered an error: ${error.message}`);
+  logError(
+    `User ${identifier} - ${username} encountered an error: ${error.message}`
+  );
   client.end();
 };
 
@@ -65,7 +68,7 @@ const onClientConnected = (client) => {
   let identifier = generateSessionId();
   let username = '';
 
-  client.on('authentication', (context) => { 
+  client.on('authentication', (context) => {
     onClientAuth(context);
     username = context.username;
   });
@@ -74,7 +77,9 @@ const onClientConnected = (client) => {
 
   client.on('close', () => onClientClose(identifier, username));
 
-  client.on('error', (error) => onClientError(client, identifier, username, error));
+  client.on('error', (error) =>
+    onClientError(client, identifier, username, error)
+  );
 };
 
 module.exports = {

@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { logInfo, logError, logWarning } = require('../utils/logger');
 
 /* Library */
 const { specialKeys } = require('../utils/messageUtils');
@@ -10,8 +11,8 @@ const activeSessions = [];
  * @param {string} currentIdentifier Client identifier.
  * @returns {Array} List of active sessions.
  */
-const activeSessionsOtherThanCurrent = (currentIdentifier) => 
-  activeSessions.filter(s => s.identifier !== currentIdentifier);
+const activeSessionsOtherThanCurrent = (currentIdentifier) =>
+  activeSessions.filter((s) => s.identifier !== currentIdentifier);
 
 /**
  * Generate a new unique session identifier.
@@ -26,7 +27,9 @@ const generateSessionId = () => crypto.randomUUID();
  */
 const listActiveUsers = (currentIdentifier) => {
   const userSessions = activeSessionsOtherThanCurrent(currentIdentifier);
-  return userSessions.length ? userSessions?.map(s => `  - ${s.username}`).join(specialKeys.newline) : '  No one else is here 😢';
+  return userSessions.length
+    ? userSessions?.map((s) => `  - ${s.username}`).join(specialKeys.newline)
+    : '  No one else is here 😢';
 };
 
 /**
@@ -37,10 +40,10 @@ const listActiveUsers = (currentIdentifier) => {
  * @param {Stream} channel Client stream.
  */
 const addNewActiveSession = (identifier, username, session, channel) => {
-  console.log(`New user connection: ${identifier} - ${username}`);
+  logInfo(`New user connection: ${identifier} - ${username}`);
 
-  if (activeSessions.filter(s => s.identifier === identifier).length) {
-    console.log('Attempted to add an existing session to active session list');
+  if (activeSessions.filter((s) => s.identifier === identifier).length) {
+    logError('Attempted to add an existing session to active session list');
     throw Error('Something went wrong, user session already exists');
   }
 
@@ -58,10 +61,10 @@ const addNewActiveSession = (identifier, username, session, channel) => {
  * @param {string} identifier Client identifier.
  */
 const removeActiveSession = (identifier) => {
-  const index = activeSessions.findIndex(s => s.identifier === identifier);
+  const index = activeSessions.findIndex((s) => s.identifier === identifier);
 
   if (index < 0) {
-    console.log('Tried to remove a session that doesn\'t exist');
+    logWarning("Tried to remove a session that doesn't exist");
     return;
   }
 
@@ -85,12 +88,24 @@ const getCurrentServerTimeString = () => {
  * @param {string} currentIdentifier Current session identifier.
  * @returns {string} Welcome banner.
  */
-const displayWelcomeBanner = (currentIdentifier) => `=============================================${specialKeys.newline}  Welcome to SSH Chat!${specialKeys.newline}
-  Current server time: ${getCurrentServerTimeString()}${specialKeys.newline}  Current active users:${specialKeys.newline}  ${listActiveUsers(currentIdentifier)}${specialKeys.newline}
-  Type '/commands' to view all available chat server commands${specialKeys.newline}
-  Please be civil and have a nice time 🥳${specialKeys.newline}=============================================${specialKeys.newline}`;
+const displayWelcomeBanner = (
+  currentIdentifier
+) => `=============================================${
+  specialKeys.newline
+}  Welcome to SSH Chat!${specialKeys.newline}
+  Current server time: ${getCurrentServerTimeString()}${
+  specialKeys.newline
+}  Current active users:${specialKeys.newline}  ${listActiveUsers(
+  currentIdentifier
+)}${specialKeys.newline}
+  Type '/commands' to view all available chat server commands${
+    specialKeys.newline
+  }
+  Please be civil and have a nice time 🥳${
+    specialKeys.newline
+  }=============================================${specialKeys.newline}`;
 
-module.exports = { 
+module.exports = {
   activeSessions,
   activeSessionsOtherThanCurrent,
   generateSessionId,
