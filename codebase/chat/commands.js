@@ -41,6 +41,32 @@ const clearSendRestore = (session, message) => {
 };
 
 /**
+ * Display user input as their existing message with 'me: ' appended rather than terminal prompt indicator.
+ * Also handles display of a prompt indicator on a new line.
+ * @param {object} sendingSession Client who sent a message.
+ */
+const handleShellAfterMessageSent = (sendingSession) => {
+  const { buffer, channel } = sendingSession;
+  clearCurrentLine(channel);
+  buffer.unshift('me: ');
+  channel.write(buffer.join(''));
+  channel.write(commonMessages.newlinePrompt);
+  buffer.splice(0, buffer.length);
+  sendingSession.position = 0;
+};
+
+/**
+ * Transition to the next line after sending a server command.
+ * @param {object} sendingSession Client who sent the command.
+ */
+const handleShellAfterCommand = (sendingSession) => {
+  const { buffer, channel } = sendingSession;
+  channel.write(commonMessages.newlinePrompt);
+  buffer.splice(0, buffer.length);
+  sendingSession.position = 0;
+};
+
+/**
  * Send a message from a given client to all active users.
  * @param {string} senderIdentifier Unique identifier of sender.
  * @param {string} message Message to send.
@@ -55,6 +81,7 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
   sessionsToRecieve.forEach((s) =>
     clearSendRestore(s, `${sendingSession.username}: ${message}`)
   );
+  handleShellAfterMessageSent(sendingSession);
 };
 
 /**
@@ -84,7 +111,7 @@ const sendServerMessageToSession = (session, message) => {
 const listCommands = (session) => {
   const commandNames = Object.keys(commands);
   const message = commandNames
-    .map((c) => `    ${c}: ${commands[c]?.helper}`)
+    .map((c) => `${c}: ${commands[c]?.helper}`)
     .join(specialKeys.newline);
   sendServerMessageToSession(session, message);
 };
@@ -98,6 +125,11 @@ const listUsers = (session) => {
   sendServerMessageToSession(session, message);
 };
 
+/**
+ * Handle special case 'messages' from the user that are preceded with a '/'.
+ * @param {object} session Client session.
+ * @returns {boolean} True if slash command was handled, else false.
+ */
 const handleSlashCommand = (session) => {
   const { buffer } = session;
   const string = buffer.join('');
@@ -112,6 +144,8 @@ const handleSlashCommand = (session) => {
       `  '${string}' is not known or currently implemented`
     );
   else command.func(session);
+
+  handleShellAfterCommand(session);
 
   return true;
 };
@@ -134,18 +168,39 @@ const handleUserInput = (identifier, data) => {
   const string = data.toString();
   const keycode = readAsNumber(data);
 
+  // ignore unhandled user input
+  if (specialKeys.unhandled.includes(keycode)) return;
+
   switch (keycode) {
-    case specialKeys.return:
+    case specialKeys.enter:
+      if (!buffer.length) break;
       if (!handleSlashCommand(session))
         sendClientMessageToAllSessions(identifier, buffer.join(''));
-      channel.write(commonMessages.newlinePrompt);
-      buffer.splice(0, buffer.length);
       break;
     case specialKeys.backspace:
       clearCurrentLine(channel);
       buffer.splice(buffer.length - 1, 1);
       channel.write(commonMessages.prompt);
       channel.write(buffer.join(''));
+      session.position -= 1;
+      break;
+    case specialKeys.delete:
+      if (session.position === buffer.length) break;
+      clearCurrentLine(channel);
+      buffer.splice(session.position, 1);
+      channel.write(commonMessages.prompt);
+      channel.write(buffer.join(''));
+      readline.cursorTo(channel, session.position + 2); // add 2 to account for our '> ' prompt!
+      break;
+    case specialKeys.leftArrow:
+      if (session.position === 0) break;
+      readline.moveCursor(channel, -1, 0);
+      session.position -= 1;
+      break;
+    case specialKeys.rightArrow:
+      if (session.position === buffer.length) break;
+      readline.moveCursor(channel, 1, 0);
+      session.position += 1;
       break;
     case specialKeys.exit:
       channel.end();
@@ -153,7 +208,8 @@ const handleUserInput = (identifier, data) => {
       break;
     default:
       channel.write(data);
-      buffer.push(string);
+      buffer.splice(session.position, 1, string);
+      session.position += 1;
       break;
   }
 };

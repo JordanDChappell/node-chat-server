@@ -28,8 +28,8 @@ const generateSessionId = () => crypto.randomUUID();
 const listActiveUsers = (currentIdentifier) => {
   const userSessions = activeSessionsOtherThanCurrent(currentIdentifier);
   return userSessions.length
-    ? userSessions?.map((s) => `  - ${s.username}`).join(specialKeys.newline)
-    : '  No one else is here 😢';
+    ? userSessions?.map((s) => `- ${s.username}`).join(specialKeys.newline)
+    : 'No one else is here 😢';
 };
 
 /**
@@ -53,6 +53,7 @@ const addNewActiveSession = (identifier, username, session, channel) => {
     session,
     channel,
     buffer: [],
+    position: 0,
   });
 };
 
@@ -88,20 +89,20 @@ const getCurrentServerTimeString = () => {
  * @param {string} currentIdentifier Current session identifier.
  * @returns {string} Welcome banner.
  */
-const displayWelcomeBanner = (
-  currentIdentifier
-) => `=============================================${
-  specialKeys.newline
-}  Welcome to SSH Chat!${specialKeys.newline}
-  Current server time: ${getCurrentServerTimeString()}${
-  specialKeys.newline
-}  Current active users:${specialKeys.newline}  ${listActiveUsers(
-  currentIdentifier
-)}${specialKeys.newline}
-  Type '/commands' to view all available chat server commands${
+const displayWelcomeBanner = (currentIdentifier) =>
+  `=============================================${
     specialKeys.newline
-  }
-  Please be civil and have a nice time 🥳${
+  }Welcome to SSH Chat!${specialKeys.newline}${
+    specialKeys.newline
+  }Current server time: ${getCurrentServerTimeString()}${
+    specialKeys.newline
+  }Current active users:${specialKeys.newline}  ${listActiveUsers(
+    currentIdentifier
+  )}${specialKeys.newline}${
+    specialKeys.newline
+  }Type '/commands' to view all available chat commands${specialKeys.newline}${
+    specialKeys.newline
+  }Please be civil and have a nice time 🥳${
     specialKeys.newline
   }=============================================${specialKeys.newline}`;
 
