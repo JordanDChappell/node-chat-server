@@ -9,6 +9,7 @@ const {
 const { readAsNumber } = require('../utils/bufferUtils');
 const { commonMessages, specialKeys } = require('../utils/messageUtils');
 const { logError } = require('../utils/logger');
+const { addMessage } = require('./messageHistory');
 
 const commands = {
   '/commands': {
@@ -78,10 +79,12 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
   const sessionsToRecieve = activeSessions.filter(
     (s) => s.identifier !== senderIdentifier
   );
+  const { username } = sendingSession;
   sessionsToRecieve.forEach((s) =>
-    clearSendRestore(s, `${sendingSession.username}: ${message}`)
+    clearSendRestore(s, `${username}: ${message}`)
   );
   handleShellAfterMessageSent(sendingSession);
+  addMessage(senderIdentifier, username, message);
 };
 
 /**

@@ -12,6 +12,7 @@ const {
 } = require('./commands');
 const { commonMessages } = require('../utils/messageUtils');
 const { logInfo, logError } = require('../utils/logger');
+const { getFormattedMessageHistory } = require('./messageHistory');
 
 const onClientAuth = (context) => {
   switch (context.method) {
@@ -45,6 +46,7 @@ const onClientReady = (client, identifier, username) => {
       addNewActiveSession(identifier, username, session, channel);
       sendUserConnectedMessage(identifier, username);
       channel.write(displayWelcomeBanner(identifier));
+      channel.write(getFormattedMessageHistory());
       channel.write(commonMessages.prompt);
       channel.on('data', (data) => handleUserInput(identifier, data));
     });
