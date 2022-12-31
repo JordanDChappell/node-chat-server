@@ -13,10 +13,21 @@ const { addMessage } = require('./messageHistory');
 
 const commands = {
   '/commands': {
-    helper: 'Display a list of available commands',
+    helper: 'Display all available commands',
+  },
+  '/help': {
+    helper: 'Display additional help information about a command',
+    advancedHelper: `Usage:${specialKeys.newline}
+/help <command>${specialKeys.tab}quick help information for <command>`,
   },
   '/users': {
-    helper: 'Display a list of all connected users',
+    helper: 'Display all connected users',
+  },
+  '/whisper': {
+    helper: 'Privately chat with another user in the server',
+    advancedHelper: `Usage:${specialKeys.newline}
+/whisper <username>${specialKeys.tab}enter private whisper mode with <username>${specialKeys.return}
+/whisper <username> <message>${specialKeys.tab}send private <message> to <username> (without entering whisper mode)`,
   },
 };
 
@@ -120,6 +131,35 @@ const listCommands = (session) => {
 };
 
 /**
+ * Display help information for given command to the current user.
+ * @param {object} session Client session.
+ */
+const commandHelp = (session) => {
+  const { buffer } = session;
+  let commandString = buffer.join('').split(' ')[1];
+
+  if (!commandString) {
+    sendServerMessageToSession(session, commands['/help'].advancedHelper);
+    return;
+  }
+
+  if (!commandString.includes('/')) commandString = `/${commandString}`;
+
+  const command = commands[commandString];
+
+  if (!command)
+    sendServerMessageToSession(
+      session,
+      `${commandString} is not known or currently implemented`
+    );
+  else
+    sendServerMessageToSession(
+      session,
+      command.advancedHelper ?? command.helper
+    );
+};
+
+/**
  * Display a list of all other active users to the current user session.
  * @param {object} session Client session.
  */
@@ -135,16 +175,16 @@ const listUsers = (session) => {
  */
 const handleSlashCommand = (session) => {
   const { buffer } = session;
-  const string = buffer.join('');
+  const commandString = buffer.join('').split(' ')[0];
 
-  if (!string.startsWith('/')) return false;
+  if (!commandString.startsWith('/')) return false;
 
-  const command = commands[string];
+  const command = commands[commandString];
 
   if (!command || !command.func)
     sendServerMessageToSession(
       session,
-      `  '${string}' is not known or currently implemented`
+      `${commandString} is not known or currently implemented`
     );
   else command.func(session);
 
@@ -234,6 +274,7 @@ const sendUserConnectedMessage = (identifier, username) => {
  */
 const initCommands = () => {
   commands['/commands'].func = listCommands;
+  commands['/help'].func = commandHelp;
   commands['/users'].func = listUsers;
 };
 

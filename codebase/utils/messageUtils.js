@@ -10,6 +10,8 @@ const specialKeys = {
   leftArrow: 1792836,
   rightArrow: 1792835,
   newline: '\r\n',
+  return: '\r',
+  tab: '\t',
 
   unhandled: [
     1792833, 1792834, 30078481937729, 30078481937730, 30078481937732,
