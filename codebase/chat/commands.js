@@ -5,6 +5,7 @@ const {
   activeSessions,
   activeSessionsOtherThanCurrent,
   listActiveUsers,
+  sessionModes,
 } = require('./session');
 const { readAsNumber } = require('../utils/bufferUtils');
 const { commonMessages, specialKeys } = require('../utils/messageUtils');
@@ -13,10 +14,22 @@ const { addMessage } = require('./messageHistory');
 
 const commands = {
   '/commands': {
-    helper: 'Display a list of available commands',
+    helper: 'Display all available commands',
+  },
+  '/help': {
+    helper: 'Display additional help information about a command',
+    advancedHelper: `Usage:${specialKeys.newline}
+/help <command>${specialKeys.tab}quick help information for <command>`,
   },
   '/users': {
-    helper: 'Display a list of all connected users',
+    helper: 'Display all connected users',
+  },
+  '/whisper': {
+    helper: 'Privately chat with another user in the server',
+    advancedHelper: `Usage:${specialKeys.newline}
+/whisper${specialKeys.tab}exit whisper mode
+/whisper <username>${specialKeys.tab}enter private whisper mode with <username>${specialKeys.return}
+/whisper <username> <message>${specialKeys.tab}send private <message> to <username> (without entering whisper mode)`,
   },
 };
 
@@ -57,12 +70,37 @@ const handleShellAfterMessageSent = (sendingSession) => {
 };
 
 /**
+ * Display user input as their existing whisper with details appended rather than terminal prompt indicator.
+ * Also handles display of a prompt indicator on a new line.
+ *  @param {object} sendingSession Client who sent a whisper message.
+ * @param {string} targetUsername Username of the target of the whisper.
+ */
+const handleShellAfterWhisperSent = (sendingSession, targetUsername) => {
+  const { buffer, channel } = sendingSession;
+  clearCurrentLine(channel);
+  buffer.unshift(`me [whisper @${targetUsername}]: `);
+  const string = buffer.join('').replace(`/whisper ${targetUsername} `, '');
+  channel.write(string);
+  channel.write(
+    sendingSession.mode === sessionModes.whisper
+      ? commonMessages.newlineWhisperPrompt
+      : commonMessages.newlinePrompt
+  );
+  buffer.splice(0, buffer.length);
+  sendingSession.position = 0;
+};
+
+/**
  * Transition to the next line after sending a server command.
  * @param {object} sendingSession Client who sent the command.
  */
 const handleShellAfterCommand = (sendingSession) => {
   const { buffer, channel } = sendingSession;
-  channel.write(commonMessages.newlinePrompt);
+  channel.write(
+    sendingSession.mode === sessionModes.whisper
+      ? commonMessages.newlineWhisperPrompt
+      : commonMessages.newlinePrompt
+  );
   buffer.splice(0, buffer.length);
   sendingSession.position = 0;
 };
@@ -117,6 +155,38 @@ const listCommands = (session) => {
     .map((c) => `${c}: ${commands[c]?.helper}`)
     .join(specialKeys.newline);
   sendServerMessageToSession(session, message);
+  handleShellAfterCommand(session);
+};
+
+/**
+ * Display help information for given command to the current user.
+ * @param {object} session Client session.
+ */
+const commandHelp = (session) => {
+  const { buffer } = session;
+  let commandString = buffer.join('').split(' ')[1];
+
+  if (!commandString) {
+    sendServerMessageToSession(session, commands['/help'].advancedHelper);
+    return;
+  }
+
+  if (!commandString.includes('/')) commandString = `/${commandString}`;
+
+  const command = commands[commandString];
+
+  if (!command)
+    sendServerMessageToSession(
+      session,
+      `${commandString} is not known or currently implemented`
+    );
+  else
+    sendServerMessageToSession(
+      session,
+      command.advancedHelper ?? command.helper
+    );
+
+  handleShellAfterCommand(session);
 };
 
 /**
@@ -126,6 +196,71 @@ const listCommands = (session) => {
 const listUsers = (session) => {
   const message = listActiveUsers(session.identifier);
   sendServerMessageToSession(session, message);
+  handleShellAfterCommand(session);
+};
+
+/**
+ * Enable whisper mode from the sender to the target.
+ * @param {object} senderSession Sender client session.
+ * @param {object} targetSession Target client session.
+ */
+const handleWhisperMode = (senderSession, targetSession) => {
+  senderSession.mode = sessionModes.whisper;
+  senderSession.target = targetSession.identifier;
+  handleShellAfterCommand(senderSession);
+};
+
+/**
+ * Send a single whisper message to given target session.
+ * @param {object} senderSession Sender client session.
+ * @param {object} targetSession Target client session.
+ */
+const handleWhisperToUser = (senderSession, targetSession) => {
+  const { buffer, username: senderUsername } = senderSession;
+  const { username: targetUsername } = targetSession;
+  const string = buffer.join('');
+  const message = string.replace(`/whisper ${targetUsername} `, '');
+  clearSendRestore(targetSession, `${senderUsername} [whisper]: ${message}`);
+  handleShellAfterWhisperSent(senderSession, targetUsername);
+};
+
+/**
+ * Implements the 'whisper' command, depending on arguments will send a whisper to user or enter whisper mode with
+ * the given user.
+ * @param {object} session Client session.
+ */
+const whisper = (session) => {
+  const { buffer } = session;
+  const parts = buffer.join('').split(' ');
+
+  // determine whisper format
+  if (parts.length < 2) {
+    // disable whisper mode
+    session.mode = sessionModes.default;
+    session.target = '';
+    handleShellAfterCommand(session);
+    return;
+  }
+
+  const targetUsername = parts[1];
+  const targetSession = activeSessions.find(
+    (s) => s.username === targetUsername
+  );
+
+  if (!targetSession) {
+    sendServerMessageToSession(
+      session,
+      `Unable to find given user '${targetUsername}'`
+    );
+    return;
+  }
+
+  if (parts.length === 2) {
+    handleWhisperMode(session, targetSession);
+    return;
+  }
+
+  handleWhisperToUser(session, targetSession);
 };
 
 /**
@@ -135,22 +270,41 @@ const listUsers = (session) => {
  */
 const handleSlashCommand = (session) => {
   const { buffer } = session;
-  const string = buffer.join('');
+  const commandString = buffer.join('').split(' ')[0];
 
-  if (!string.startsWith('/')) return false;
+  if (!commandString.startsWith('/')) return false;
 
-  const command = commands[string];
+  const command = commands[commandString];
 
   if (!command || !command.func)
     sendServerMessageToSession(
       session,
-      `  '${string}' is not known or currently implemented`
+      `${commandString} is not known or currently implemented`
     );
   else command.func(session);
 
-  handleShellAfterCommand(session);
-
   return true;
+};
+
+/**
+ * Handle user input from the terminal intended as a chat message.
+ * @param {string} senderIdentifier Unique identifier of sender.
+ * @param {string} message Message to send.
+ */
+const handleClientMessage = (senderIdentifier, message) => {
+  const sendingSession = activeSessions.find(
+    (s) => s.identifier === senderIdentifier
+  );
+
+  if (sendingSession.mode === sessionModes.whisper) {
+    const targetSession = activeSessions.find(
+      (s) => s.identifier === sendingSession.target
+    );
+    handleWhisperToUser(sendingSession, targetSession);
+    return;
+  }
+
+  sendClientMessageToAllSessions(senderIdentifier, message);
 };
 
 /**
@@ -178,7 +332,7 @@ const handleUserInput = (identifier, data) => {
     case specialKeys.enter:
       if (!buffer.length) break;
       if (!handleSlashCommand(session))
-        sendClientMessageToAllSessions(identifier, buffer.join(''));
+        handleClientMessage(identifier, buffer.join(''));
       break;
     case specialKeys.backspace:
       clearCurrentLine(channel);
@@ -234,7 +388,9 @@ const sendUserConnectedMessage = (identifier, username) => {
  */
 const initCommands = () => {
   commands['/commands'].func = listCommands;
+  commands['/help'].func = commandHelp;
   commands['/users'].func = listUsers;
+  commands['/whisper'].func = whisper;
 };
 
 module.exports = {
