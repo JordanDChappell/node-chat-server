@@ -26,7 +26,9 @@ const specialKeys = {
  */
 const commonMessages = {
   prompt: '> ',
+  whisperPrompt: '@ ',
   newlinePrompt: `${specialKeys.newline}> `,
+  newlineWhisperPrompt: `${specialKeys.newline}@ `,
 };
 
 module.exports = { specialKeys, commonMessages };

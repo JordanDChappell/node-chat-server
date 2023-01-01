@@ -6,6 +6,12 @@ const { specialKeys } = require('../utils/messageUtils');
 
 const activeSessions = [];
 
+const sessionModes = {
+  chat: 0,
+  whisper: 1,
+  default: 0,
+};
+
 /**
  * Retrive all sessions other than the current user.
  * @param {string} currentIdentifier Client identifier.
@@ -54,6 +60,8 @@ const addNewActiveSession = (identifier, username, session, channel) => {
     channel,
     buffer: [],
     position: 0,
+    mode: sessionModes.default,
+    target: '',
   });
 };
 
@@ -108,6 +116,7 @@ const displayWelcomeBanner = (currentIdentifier) =>
 
 module.exports = {
   activeSessions,
+  sessionModes,
   activeSessionsOtherThanCurrent,
   generateSessionId,
   addNewActiveSession,
