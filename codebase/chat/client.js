@@ -4,15 +4,18 @@ const {
   addNewActiveSession,
   removeActiveSession,
   displayWelcomeBanner,
+  activeSessions,
 } = require('./session');
 const {
   sendServerMessageToAllSessions,
   handleUserInput,
   sendUserConnectedMessage,
 } = require('./commands');
-const { commonMessages } = require('../utils/messageUtils');
+const { commonMessages, specialKeys } = require('../utils/messageUtils');
 const { logInfo, logError } = require('../utils/logger');
 const { getFormattedMessageHistory } = require('./messageHistory');
+
+const MAX_CONNECTION_COUNT = process.env.MAX_CONNECTION_COUNT ?? 128;
 
 const onClientAuth = (context) => {
   switch (context.method) {
@@ -43,11 +46,19 @@ const onClientReady = (client, identifier, username) => {
 
     session.on('shell', (accept) => {
       const channel = accept();
+
+      if (activeSessions.length >= MAX_CONNECTION_COUNT) {
+        channel.write(
+          `Sorry, the server is currently at capacity, please try again later or contact an administrator${specialKeys.newline}`
+        );
+        throw new Error('Server at capacity');
+      }
+
       addNewActiveSession(identifier, username, session, channel);
       sendUserConnectedMessage(identifier, username);
       channel.write(displayWelcomeBanner(identifier));
       channel.write(getFormattedMessageHistory());
-      channel.write(commonMessages.prompt);
+      channel.write(`${commonMessages.prompt} `);
       channel.on('data', (data) => handleUserInput(identifier, data));
     });
   });

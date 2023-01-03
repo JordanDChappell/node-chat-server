@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { getColourBySessionSlot } = require('../utils/colours');
 const { logInfo, logError, logWarning } = require('../utils/logger');
 
 /* Library */
@@ -34,7 +35,9 @@ const generateSessionId = () => crypto.randomUUID();
 const listActiveUsers = (currentIdentifier) => {
   const userSessions = activeSessionsOtherThanCurrent(currentIdentifier);
   return userSessions.length
-    ? userSessions?.map((s) => `- ${s.username}`).join(specialKeys.newline)
+    ? userSessions
+        ?.map((s) => `- ${s.colour}${s.username}${specialKeys.colourReset}`)
+        .join(specialKeys.newline)
     : 'No one else is here 😢';
 };
 
@@ -46,6 +49,15 @@ const listActiveUsers = (currentIdentifier) => {
  * @param {Stream} channel Client stream.
  */
 const addNewActiveSession = (identifier, username, session, channel) => {
+  // add indicator to duplicate usernames
+  const existingUserCount = activeSessions.filter(
+    (s) => s.username === username
+  ).length;
+  if (existingUserCount) username += `[${existingUserCount + 1}]`;
+
+  // generate a colour based on connection
+  const colour = getColourBySessionSlot(activeSessions.length);
+
   logInfo(`New user connection: ${identifier} - ${username}`);
 
   if (activeSessions.filter((s) => s.identifier === identifier).length) {
@@ -56,6 +68,7 @@ const addNewActiveSession = (identifier, username, session, channel) => {
   activeSessions.push({
     identifier,
     username,
+    colour,
     session,
     channel,
     buffer: [],
@@ -104,7 +117,7 @@ const displayWelcomeBanner = (currentIdentifier) =>
     specialKeys.newline
   }Current server time: ${getCurrentServerTimeString()}${
     specialKeys.newline
-  }Current active users:${specialKeys.newline}  ${listActiveUsers(
+  }Current active users:${specialKeys.newline}${listActiveUsers(
     currentIdentifier
   )}${specialKeys.newline}${
     specialKeys.newline
