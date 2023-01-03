@@ -8,9 +8,13 @@ const {
   sessionModes,
 } = require('./session');
 const { readAsNumber } = require('../utils/bufferUtils');
-const { commonMessages, specialKeys } = require('../utils/messageUtils');
+const { specialKeys } = require('../utils/messageUtils');
 const { logError } = require('../utils/logger');
 const { addMessage } = require('./messageHistory');
+const {
+  getPromptForSession,
+  getNewlinePromptForSession,
+} = require('../utils/prompt');
 
 const commands = {
   '/commands': {
@@ -50,7 +54,7 @@ const clearCurrentLine = (channel) => {
 const clearSendRestore = (session, message) => {
   clearCurrentLine(session.channel);
   session.channel.write(message);
-  session.channel.write(commonMessages.newlinePrompt);
+  session.channel.write(getNewlinePromptForSession(session));
   session.channel.write(session.buffer.join(''));
 };
 
@@ -64,7 +68,7 @@ const handleShellAfterMessageSent = (sendingSession) => {
   clearCurrentLine(channel);
   buffer.unshift('me: ');
   channel.write(buffer.join(''));
-  channel.write(commonMessages.newlinePrompt);
+  channel.write(getNewlinePromptForSession(sendingSession));
   buffer.splice(0, buffer.length);
   sendingSession.position = 0;
 };
@@ -73,19 +77,18 @@ const handleShellAfterMessageSent = (sendingSession) => {
  * Display user input as their existing whisper with details appended rather than terminal prompt indicator.
  * Also handles display of a prompt indicator on a new line.
  *  @param {object} sendingSession Client who sent a whisper message.
- * @param {string} targetUsername Username of the target of the whisper.
+ * @param {object} targetSession Session of the target user.
  */
-const handleShellAfterWhisperSent = (sendingSession, targetUsername) => {
+const handleShellAfterWhisperSent = (sendingSession, targetSession) => {
   const { buffer, channel } = sendingSession;
+  const { colour, username } = targetSession;
   clearCurrentLine(channel);
-  buffer.unshift(`me [whisper @${targetUsername}]: `);
-  const string = buffer.join('').replace(`/whisper ${targetUsername} `, '');
-  channel.write(string);
-  channel.write(
-    sendingSession.mode === sessionModes.whisper
-      ? commonMessages.newlineWhisperPrompt
-      : commonMessages.newlinePrompt
+  buffer.unshift(
+    `me [whisper ${colour}@${username}${specialKeys.colourReset}]: `
   );
+  const string = buffer.join('').replace(`/whisper ${username} `, '');
+  channel.write(string);
+  channel.write(getNewlinePromptForSession(sendingSession));
   buffer.splice(0, buffer.length);
   sendingSession.position = 0;
 };
@@ -96,11 +99,7 @@ const handleShellAfterWhisperSent = (sendingSession, targetUsername) => {
  */
 const handleShellAfterCommand = (sendingSession) => {
   const { buffer, channel } = sendingSession;
-  channel.write(
-    sendingSession.mode === sessionModes.whisper
-      ? commonMessages.newlineWhisperPrompt
-      : commonMessages.newlinePrompt
-  );
+  channel.write(getNewlinePromptForSession(sendingSession));
   buffer.splice(0, buffer.length);
   sendingSession.position = 0;
 };
@@ -117,9 +116,12 @@ const sendClientMessageToAllSessions = (senderIdentifier, message) => {
   const sessionsToRecieve = activeSessions.filter(
     (s) => s.identifier !== senderIdentifier
   );
-  const { username } = sendingSession;
+  const { username, colour } = sendingSession;
   sessionsToRecieve.forEach((s) =>
-    clearSendRestore(s, `${username}: ${message}`)
+    clearSendRestore(
+      s,
+      `${colour}${username}${specialKeys.colourReset}: ${message}`
+    )
   );
   handleShellAfterMessageSent(sendingSession);
   addMessage(senderIdentifier, username, message);
@@ -216,12 +218,19 @@ const handleWhisperMode = (senderSession, targetSession) => {
  * @param {object} targetSession Target client session.
  */
 const handleWhisperToUser = (senderSession, targetSession) => {
-  const { buffer, username: senderUsername } = senderSession;
+  const {
+    buffer,
+    username: senderUsername,
+    colour: senderColour,
+  } = senderSession;
   const { username: targetUsername } = targetSession;
   const string = buffer.join('');
   const message = string.replace(`/whisper ${targetUsername} `, '');
-  clearSendRestore(targetSession, `${senderUsername} [whisper]: ${message}`);
-  handleShellAfterWhisperSent(senderSession, targetUsername);
+  clearSendRestore(
+    targetSession,
+    `${senderColour}${senderUsername}${specialKeys.colourReset} [whisper]: ${message}`
+  );
+  handleShellAfterWhisperSent(senderSession, targetSession);
 };
 
 /**
@@ -335,9 +344,10 @@ const handleUserInput = (identifier, data) => {
         handleClientMessage(identifier, buffer.join(''));
       break;
     case specialKeys.backspace:
+      if (session.position === 0) break;
       clearCurrentLine(channel);
       buffer.splice(buffer.length - 1, 1);
-      channel.write(commonMessages.prompt);
+      channel.write(getPromptForSession(session));
       channel.write(buffer.join(''));
       session.position -= 1;
       break;
@@ -345,7 +355,7 @@ const handleUserInput = (identifier, data) => {
       if (session.position === buffer.length) break;
       clearCurrentLine(channel);
       buffer.splice(session.position, 1);
-      channel.write(commonMessages.prompt);
+      channel.write(getPromptForSession(session));
       channel.write(buffer.join(''));
       readline.cursorTo(channel, session.position + 2); // add 2 to account for our '> ' prompt!
       break;
@@ -374,12 +384,17 @@ const handleUserInput = (identifier, data) => {
 /**
  * Send a message to other clients when a new user connects.
  * @param {string} identifier Unique client identifier.
- * @param {string} username
  */
-const sendUserConnectedMessage = (identifier, username) => {
+const sendUserConnectedMessage = (identifier) => {
+  const { colour, username } = activeSessions.find(
+    (s) => s.identifier === identifier
+  );
   const userSessions = activeSessionsOtherThanCurrent(identifier);
   userSessions.forEach((s) =>
-    clearSendRestore(s, `User '${username}' has connected`)
+    clearSendRestore(
+      s,
+      `User '${colour}${username}${specialKeys.colourReset}' has connected`
+    )
   );
 };
 

@@ -12,6 +12,7 @@ const specialKeys = {
   newline: '\r\n',
   return: '\r',
   tab: '\t',
+  colourReset: '\u001b[0m',
 
   unhandled: [
     1792833, 1792834, 30078481937729, 30078481937730, 30078481937732,
@@ -25,10 +26,10 @@ const specialKeys = {
  * Common and reusable message types.
  */
 const commonMessages = {
-  prompt: '> ',
-  whisperPrompt: '@ ',
-  newlinePrompt: `${specialKeys.newline}> `,
-  newlineWhisperPrompt: `${specialKeys.newline}@ `,
+  prompt: '>',
+  whisperPrompt: '@',
+  newlinePrompt: `${specialKeys.newline}>`,
+  newlineWhisperPrompt: `${specialKeys.newline}@`,
 };
 
 module.exports = { specialKeys, commonMessages };
