@@ -170,6 +170,7 @@ const commandHelp = (session) => {
 
   if (!commandString) {
     sendServerMessageToSession(session, commands['/help'].advancedHelper);
+    handleShellAfterCommand(session);
     return;
   }
 
@@ -261,6 +262,7 @@ const whisper = (session) => {
       session,
       `Unable to find given user '${targetUsername}'`
     );
+    handleShellAfterCommand(session);
     return;
   }
 
