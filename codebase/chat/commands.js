@@ -23,7 +23,7 @@ const commands = {
   '/help': {
     helper: 'Display additional help information about a command',
     advancedHelper: `Usage:${specialKeys.newline}
-/help <command>${specialKeys.tab}quick help information for <command>`,
+/help <command>: quick help information for <command>`,
   },
   '/users': {
     helper: 'Display all connected users',
@@ -31,9 +31,9 @@ const commands = {
   '/whisper': {
     helper: 'Privately chat with another user in the server',
     advancedHelper: `Usage:${specialKeys.newline}
-/whisper${specialKeys.tab}exit whisper mode
-/whisper <username>${specialKeys.tab}enter private whisper mode with <username>${specialKeys.return}
-/whisper <username> <message>${specialKeys.tab}send private <message> to <username> (without entering whisper mode)`,
+/whisper: exit whisper mode${specialKeys.return}
+/whisper <username>: enter private whisper mode with <username>${specialKeys.return}
+/whisper <username> <message>: send private <message> to <username> (without entering whisper mode)`,
   },
 };
 
