@@ -51,7 +51,7 @@ const listActiveUsers = (currentIdentifier) => {
 const addNewActiveSession = (identifier, username, session, channel) => {
   // add indicator to duplicate usernames
   const existingUserCount = activeSessions.filter(
-    (s) => s.username === username
+    (s) => s.username.replace(/\[.\]/, '') === username
   ).length;
   if (existingUserCount) username += `[${existingUserCount + 1}]`;
 
