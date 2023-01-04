@@ -12,8 +12,9 @@ const config = {
   hostKeys: [process.env.PRIVATE_KEY],
 };
 
+const port = process.env.PORT ?? 22;
 const server = new Server(config, onClientConnected);
 
-server.listen(process.env.PORT, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', () => {
   logInfo(`Server listening on port ${server.address().port}`);
 });
